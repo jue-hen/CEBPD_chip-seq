@@ -1,0 +1,143 @@
+###检查数据是否齐全
+md5sum -c *md5
+###检查数据质量
+fastqc *fq.gz -o ./fastqc_result/
+cd ./fastqc_result/
+multiqc ./
+
+
+###去除低质量序列
+
+#! /bin/bash
+raw_dat="/home/xkl/data/cut_tag/raw_dat"
+clean_dat="/home/xkl/data/cut_tag/clean_dat"
+
+ls ${raw_dat}/*_R1.fastq.gz > ${clean_dat}/1_tmp.file
+ls ${raw_dat}/*_R2.fastq.gz > ${clean_dat}/2_tmp.file
+paste 1_tmp.file 2_tmp.file -d "\t" > ${clean_dat}/fastq.list
+rm -r *tmp.file
+
+cat ${clean_dat}/fastq.list | while read line; 
+do
+  r1=$(echo "$line" | awk '{print $1}')
+  r2=$(echo "$line" | awk '{print $2}')
+  ls -ls $r1 $r2
+  cr1=$(basename $r1 | cut -d "." -f 1)
+  cr2=$(basename $r2 | cut -d "." -f 1)
+  echo $cr1
+  echo $cr2
+
+  CR1=$cr1".Cleaned.fastq.gz"
+  CR2=$cr2".Cleaned.fastq.gz"
+
+##QC
+  /usr/bin/fastp -w 3 -i $r1 -o ${clean_dat}/$CR1 -I $r2 -O ${clean_dat}/$CR2 \ 
+    -h ${clean_dat}/$r1".fastp.html" -j ${clean_dat}/$r1".jsoR"
+done
+
+cd ${clean_dat}
+mkdir quality_check_after_trim
+fastqc *fastq.gz -O ./quality_check_after_trim
+cd ./quality_check_after_trim
+multiqc ./
+
+
+###回帖到基因组
+ls | while read id; do mv $id ${id#*-};done
+ls * | cut -f 1 -d "." | cut -f 1 -d "_" | sort -u | awk '{print $1"_combined"}' > sample_id
+
+#! /bin/bash
+fq_file="/home/xkl/data/cut_tag/hg19_map"
+output="/home/xkl/data/cut_tag/hg19_map/result"
+ref="/home/xkl/data/chipseq/reference/hg19/hg19"
+
+cat /home/xkl/data/cut_tag/hg19_map/sample_id | while read id;
+do
+   r1=${fq_file}/${id}_R1.Cleaned.fastq.gz
+   r2=${fq_file}/${id}_R2.Cleaned.fastq.gz
+   ls -lh $r1 $r2
+   bowtie2 --local --very-sensitive --no-mixed --no-discordant --phred33 -I 10 -X 700 --threads 8 -x ${ref} -1 ${r1} -2 ${r2} | samtools view -b -h | samtools sort -O BAM -o ${output}/${id}.sorted.bam
+done
+###读长为25x25的测序数据且未经过修剪时，使用一下比对命令
+##bowtie2 --end-to-end --very-sensitive --no-mixed --no-discordant --phred33 -I 10 -X 700 
+
+###去除低质量的比对文件
+#! /bin/bash
+gatk="/home/xkl/software/gatk-4.2.6.0"
+bam_file="/home/xkl/data/cut_tag/hg19_map/result"
+output="/home/xkl/data/cut_tag/hg19_map/result/trim_bam"
+ls $bam_file/*.sorted.bam | while read id;
+do
+   base=`(basename ${id} .sorted.bam)`
+   echo $base
+
+   re=$base".resorted.bam"
+   java -jar ${gatk}/gatk-package-4.2.6.0-local.jar SortSam \
+          -I $id \
+          -O ${output}/${re} \
+          -SO coordinate
+
+   ##mark duplicates
+   metric=$base".rmdup.table"
+   out=$base".rmdup.bam"
+   java -jar ${gatk}/gatk-package-4.2.6.0-local.jar MarkDuplicates \
+         -I ${output}/${re} \
+         -M ${output}/${metric} -O ${output}/${out} \
+         --REMOVE_DUPLICATES true
+   samtools index ${output}/${out}
+
+   samtools view -@ 14 -h -f bam -F "mapping_quality >= 20" ${output}/${out} -o ${output}/$base".filtered.bam"
+   samtools index ${output}/$base".filtered.bam"
+
+   ##去除线粒体和性染色体上的比对序列
+   samtools view -b -h ${output}/$base".filtered.bam" chr1 chr2 chr3 chr4 chr5 chr6 chr7 chr8 chr9 chr10 chr11 chr12 chr13 chr14 chr15 chr16 chr17 chr18 chr19 chr20 chr21 chr22 > ${output}/$base".processed.bam"
+   samtools index ${output}/$base".processed.bam"
+done
+
+###绘制基因组信号图 deeptools
+#! /bin/bash
+
+bed_file="/home/xkl/data/cut_tag/hg19_map/result/trim_bam/BW_file/hg19.bed.gz"
+ls ../*processed.bam | while read id;
+do
+  sample=`(basename $id .processed.bam)`
+  #sample=${id%%.*}
+  echo $sample
+  /home/xkl/miniconda3/envs/Chip-seq/bin/bamCoverage -b ${id} -o ./${sample}.bw --normalizeUsing RPKM --ignoreForNormalization chrM
+  computeMatrix reference-point --referencePoint TSS -p 10 -b 3000 -a 3000 -R ${bed_file} -S ./${sample}.bw --skipZeros -o matrix_${sample}_TSS_3K.gz --o
+utFileSortedRegions regions_${sample}_genes_TSS_3K.bed
+  plotHeatmap -m matrix_${sample}_TSS_3K.gz -out ${sample}_TSS_3K.pdf --plotFileFormat pdf --dpi 720
+  plotProfile -m matrix_${sample}_TSS_3K.gz -out ${sample}_TSS_3K.pdf --plotFileFormat pdf --perGroup --dpi 720
+done
+
+computeMatrix scale-regions -p 10 -b 3000 --regionBodyLength 5000 -a 3000 \
+ -R ${bed_file} -S ./*.bw --skipZeros -o matrix_gene_mat.gz \
+--outFileSortedRegions regions_gene.bed
+
+plotHeatmap -m matrix_gene_mat.gz -out ./gene_body.pdf --plotFileFormat pdf --dpi 720
+plotProfile -m matrix_gene_mat.gz -out ./gene_body_plotprofile.pdf --plotFileFormat pdf --perGroup --dpi 720
+
+bed_file="/home/xkl/data/cut_tag/hg19_map/result/trim_bam/BW_file/hg19.bed.gz"
+computeMatrix reference-point --referencePoint TSS -p 10 -b 3000 -a 3000 -R ${bed_file} -S ./*.bw --skipZeros -o matrix_TSS_3K.gz --outFileSortedRegions regions_genes_TSS_3K.bed
+plotHeatmap -m matrix_TSS_3K.gz -out ./gene_TSS.pdf --plotFileFormat pdf --dpi 720
+plotProfile -m matrix_TSS_3K.gz -out ./gene_TSS_plotprofile.pdf --plotFileFormat pdf --perGroup --dpi 720
+
+multiBigwigSummary bins -b *.bw -o results.npz
+
+plotCorrelation -in results.npz --corMethod spearman --skipZeros --plotTitle "Spearman Correlation of Read Counts" --labels Con-1 Con-2 DOX-1 DOX-2 --plotFileFormat pdf --whatToPlot heatmap --colorMap RdYlBu_r --plotNumbers -o heatmap_SpearmanCorr_readCounts.pdf --outFileCorMatrix SpearmanCorr_readCounts.tab
+
+plotPCA -in results.npz --plotFileFormat pdf -o PCA_readounts.pdf
+
+###使用macs2进行peak calling
+#! /bin/bash
+bam_pwd="/home/xkl/data/cut_tag/hg19_map/result/trim_bam"
+
+
+ls ${bam_pwd}/*processed.bam | while read id;
+do
+   name=`(basename ${id} .processed.bam)`
+   echo $name
+   #ls -lh ${id}
+   macs2 callpeak -t ${id} -g hs -f BAMPE --outdir ./ -n macs2_call_peak_q0.05_${name} -q 0.05 --call-summits --keep-dup all
+
+done
