@@ -64,3 +64,12 @@ table(out_peakAnno$start == out$start)
 table(out_peakAnno$end == out$end)
 res <- cbind(out, out_peakAnno[,c(6:ncol(out_peakAnno))])
 write.table(res, file = "./cut_tag_analysis/DIFF_peak/DOX_vs_CON.deseq2.txt", sep = "\t", quote = F, row.names = F)
+
+###所有peak文件进行注释
+CON1 <- toGRanges("./cut_tag_analysis/call_peak/call_peak_every_samp/macs2_call_peak_q0.05_Con-1_summits.bed", format="BED")
+CON2 <- toGRanges("./cut_tag_analysis/call_peak/call_peak_every_samp/macs2_call_peak_q0.05_Con-2_summits.bed", format="BED")
+DOX1 <- toGRanges("./cut_tag_analysis/call_peak/call_peak_every_samp/macs2_call_peak_q0.05_DOX-1_summits.bed", format="BED")
+DOX2 <- toGRanges("./cut_tag_analysis/call_peak/call_peak_every_samp/macs2_call_peak_q0.05_DOX-2_summits.bed", format="BED")
+files <- list(CON1=CON1,CON2=CON2,DOX1=DOX1,DOX2=DOX2)
+peakAnnoList <- lapply(files, annotatePeak, TxDb= TxDb.Hsapiens.UCSC.hg19.knownGene, tssRegion=c(-1000,1000))
+plotAnnoBar(peakAnnoList)
