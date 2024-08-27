@@ -141,3 +141,17 @@ do
    macs2 callpeak -t ${id} -g hs -f BAMPE --outdir ./ -n macs2_call_peak_q0.05_${name} -q 0.05 --call-summits --keep-dup all
 
 done
+
+
+###进行motif分析
+#! /bin/bash
+mkdir DOX1_enriched_motif
+mkdir DOX2_enriched_motif
+mkdir CON1_enriched_motif
+mkdir CON2_enriched_motif
+
+findMotifsGenome.pl ../../call_peak/call_peak_every_samp/macs2_call_peak_q0.05_DOX-1_summits.bed /home/xiaokanglong/Desktop/usb/project/Chip-seq/homer/data/genomes/hg19/ ./DOX1_enriched_motif/ -size 200
+findMotifsGenome.pl ../../call_peak/call_peak_every_samp/macs2_call_peak_q0.05_DOX-2_summits.bed /home/xiaokanglong/Desktop/usb/project/Chip-seq/homer/data/genomes/hg19/ ./DOX2_enriched_motif/ -size 200
+
+findMotifsGenome.pl ../../call_peak/call_peak_every_samp/macs2_call_peak_q0.05_Con-1_summits.bed /home/xiaokanglong/Desktop/usb/project/Chip-seq/homer/data/genomes/hg19/ ./CON1_enriched_motif/ -size 200
+findMotifsGenome.pl ../../call_peak/call_peak_every_samp/macs2_call_peak_q0.05_Con-2_summits.bed /home/xiaokanglong/Desktop/usb/project/Chip-seq/homer/data/genomes/hg19/ ./CON2_enriched_motif/ -size 200
