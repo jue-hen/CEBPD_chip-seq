@@ -1,0 +1,66 @@
+library(BiocParallel)
+register(SerialParam())
+library(DiffBind)
+samp_txt <- "./cut_tag_analysis/DOX_vs_CON_cut_tag.csv"
+tamoxifen <- dba(sampleSheet = samp_txt)
+tamoxifen
+peakdata <- dba.show(tamoxifen)$Intervals
+peakdata
+
+##去除黑名单区域的peaks
+tamoxifen <- dba.blacklist(tamoxifen,
+                           blacklist = DBA_BLACKLIST_HG19,
+                           greylist = FALSE)
+tamoxifen
+
+tamoxifen <- dba.count(tamoxifen, bUseSummarizeOverlaps = TRUE)
+tamoxifen <- dba.contrast(tamoxifen, categories = DBA_CONDITION, minMembers = 2)
+tamoxifen <- dba.analyze(tamoxifen)
+dba.show(tamoxifen, bContrasts = T)
+save(tamoxifen, file = "./cut_tag_analysis/DIFF_peak/DOX_vs_CON.rda")
+tamoxifen.DB <- dba.report(tamoxifen, th=1, bCalled = T)
+
+out <- as.data.frame(tamoxifen.DB)
+table(out$FDR <= 0.05)
+range(out$Fold)
+table(abs(out$Fold) > 1)
+#table(out$p.value <= 0.05)
+
+tmp <- subset(out,out$FDR <= 0.05 & out$Fold > 1)
+range(tmp$FDR)
+table(tmp$FDR <= 0.05)
+
+tmp_down <- subset(out,out$FDR <= 0.05 & out$Fold < -1)
+range(out$FDR)
+range(out$Fold)
+
+write.table(out, file = "./cut_tag_analysis/DIFF_peak/DOX_vs_CON.deseq2.txt", sep = "\t", quote = F, row.names = F)
+
+p_cutoff <- 0.05
+fc_cutoff <- 1
+
+out$expression <- ifelse(out$Fold >= fc_cutoff & out$FDR <= p_cutoff, "Up",
+                         ifelse(out$Fold <= -fc_cutoff & out$FDR <= p_cutoff, "Down",
+                                "Unchanged"))
+out$expression <- factor(out$expression, levels = c("Up","Unchanged","Down"))
+table(out$expression)
+out$logFDR <- -log10(out$FDR)
+
+###基因注释
+library(ChIPseeker)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(org.Hs.eg.db)
+library(clusterProfiler)
+out_GR <- GRanges(seqnames = out[,"seqnames"], IRanges(out[,"start"], out[,"end"]))
+
+out_peakAnno <- annotatePeak(out_GR, tssRegion = c(-1000,1000),
+                              TxDb = TxDb.Hsapiens.UCSC.hg19.knownGene,
+                              annoDb = "org.Hs.eg.db")
+plotAnnoPie(out_peakAnno)
+plotAnnoBar(out_peakAnno)
+out_peakAnno <- as.data.frame(out_peakAnno)
+table(out_peakAnno$seqnames == out$seqnames)
+table(out_peakAnno$start == out$start)
+table(out_peakAnno$end == out$end)
+res <- cbind(out, out_peakAnno[,c(6:ncol(out_peakAnno))])
+write.table(res, file = "./cut_tag_analysis/DIFF_peak/DOX_vs_CON.deseq2.txt", sep = "\t", quote = F, row.names = F)
