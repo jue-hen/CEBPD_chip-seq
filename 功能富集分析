@@ -1,0 +1,127 @@
+###enrichment
+#####down gene peak
+library(ChIPseeker)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(org.Hs.eg.db)
+library(clusterProfiler)
+down_GR <- GRanges(seqnames = tmp_down[,"seqnames"], IRanges(tmp_down[,"start"], tmp_down[,"end"]))
+
+down_peakAnno <- annotatePeak(down_GR, tssRegion = c(-1000,1000),
+                            TxDb = TxDb.Hsapiens.UCSC.hg19.knownGene,
+                            annoDb = "org.Hs.eg.db")
+plotAnnoPie(down_peakAnno)
+plotAnnoBar(down_peakAnno)
+down_peakAnno <- as.data.frame(down_peakAnno)
+write.table(down_peakAnno, "./cut_tag_analysis/DIFF_peak/Down_diff_peak_Annotation.txt",
+            row.names = F, quote = F, sep = "\t")
+
+###所有基因富集
+gene <- down_peakAnno$SYMBOL
+length(unique(gene)) 
+genes <- bitr(gene, fromType = "SYMBOL",
+              toType = c("ENTREZID","ENSEMBL"),
+              OrgDb = "org.Hs.eg.db")
+kegg <- enrichKEGG(genes$ENTREZID,
+                   organism = "hsa",
+                   keyType = "kegg",
+                   pvalueCutoff = 0.5,
+                   qvalueCutoff = 0.5)
+dotplot(kegg, showCategory=10,title="KEGG ENRICHMENT")
+
+go <- enrichGO(genes$ENTREZID,
+               OrgDb = org.Hs.eg.db,
+               ont = "BP",
+               pAdjustMethod = "BH",
+               pvalueCutoff = 0.5,
+               qvalueCutoff = 0.5,
+               keyType = "ENTREZID",
+               readable = T)
+dotplot(go, showCategory=10, label_format=40, title="GO-BP ENRICHMENT")
+
+###启动子区域 富集
+sub_promo <- down_peakAnno[grep("Promoter", down_peakAnno$annotation),]
+gene <- sub_promo$SYMBOL
+length(unique(gene)) #809
+
+library(clusterProfiler) 
+library(org.Hs.eg.db)
+genes <- bitr(dat$SYMBOL, fromType = "SYMBOL",
+              toType = c("ENTREZID","ENSEMBL"),
+              OrgDb = "org.Hs.eg.db")
+kegg <- enrichKEGG(genes$ENTREZID,
+                   organism = "hsa",
+                   keyType = "kegg",
+                   pvalueCutoff = 0.5,
+                   qvalueCutoff = 0.5)
+dotplot(kegg, showCategory=10,title="KEGG ENRICHMENT")
+
+go <- enrichGO(genes$ENTREZID,
+               OrgDb = org.Hs.eg.db,
+               ont = "BP",
+               pAdjustMethod = "BH",
+               pvalueCutoff = 0.5,
+               qvalueCutoff = 0.5,
+               keyType = "ENTREZID",
+               readable = T)
+dotplot(go, showCategory=10, label_format=40, title="GO-BP ENRICHMENT")
+
+down_GR <- GRanges(seqnames = tmp_down[,"seqnames"], IRanges(tmp_down[,"start"], tmp_down[,"end"]))
+
+down_peakAnno <- annotatePeak(down_GR, tssRegion = c(-1000,1000),
+                            TxDb = TxDb.Hsapiens.UCSC.hg19.knownGene,
+                            annoDb = "org.Hs.eg.db")
+plotAnnoPie(down_peakAnno)
+plotAnnoBar(down_peakAnno)
+down_peakAnno <- as.data.frame(down_peakAnno)
+write.table(down_peakAnno, "./cut_tag_analysis/DIFF_peak/Down_diff_peak_Annotation.txt",
+            row.names = F, quote = F, sep = "\t")
+
+###所有基因富集
+gene <- down_peakAnno$SYMBOL
+length(unique(gene)) 
+genes <- bitr(gene, fromType = "SYMBOL",
+              toType = c("ENTREZID","ENSEMBL"),
+              OrgDb = "org.Hs.eg.db")
+kegg <- enrichKEGG(genes$ENTREZID,
+                   organism = "hsa",
+                   keyType = "kegg",
+                   pvalueCutoff = 0.5,
+                   qvalueCutoff = 0.5)
+dotplot(kegg, showCategory=10,title="KEGG ENRICHMENT")
+
+go <- enrichGO(genes$ENTREZID,
+               OrgDb = org.Hs.eg.db,
+               ont = "BP",
+               pAdjustMethod = "BH",
+               pvalueCutoff = 0.5,
+               qvalueCutoff = 0.5,
+               keyType = "ENTREZID",
+               readable = T)
+dotplot(go, showCategory=10, label_format=40, title="GO-BP ENRICHMENT")
+
+###启动子区域 富集
+sub_promo <- down_peakAnno[grep("Promoter", down_peakAnno$annotation),]
+gene <- sub_promo$SYMBOL
+length(unique(gene)) #809
+
+library(clusterProfiler) 
+library(org.Hs.eg.db)
+genes <- bitr(dat$SYMBOL, fromType = "SYMBOL",
+              toType = c("ENTREZID","ENSEMBL"),
+              OrgDb = "org.Hs.eg.db")
+kegg <- enrichKEGG(genes$ENTREZID,
+                   organism = "hsa",
+                   keyType = "kegg",
+                   pvalueCutoff = 0.5,
+                   qvalueCutoff = 0.5)
+dotplot(kegg, showCategory=10,title="KEGG ENRICHMENT")
+
+go <- enrichGO(genes$ENTREZID,
+               OrgDb = org.Hs.eg.db,
+               ont = "BP",
+               pAdjustMethod = "BH",
+               pvalueCutoff = 0.5,
+               qvalueCutoff = 0.5,
+               keyType = "ENTREZID",
+               readable = T)
+dotplot(go, showCategory=10, label_format=40, title="GO-BP ENRICHMENT")
