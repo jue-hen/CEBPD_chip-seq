@@ -1,0 +1,12 @@
+###motif 分析
+library(ggseqlogo)
+library(ggplot2)
+###CON1
+file="./cut_tag_analysis/motif_analysis/call_peak_every_sam/CON1_enriched_motif/knownResults/known1.motif"
+motif <- read.table(file, skip = 1)
+names(motif) <- c("A","C","G","T")
+motif <- t(motif)
+p <- ggseqlogo(motif, method="bits", col_scheme="nucleotide")
+pdf("./cut_tag_analysis/motif_analysis/call_peak_every_sam/sp1.logo", width = 6, height = 4)
+print(p)
+dev.off()
