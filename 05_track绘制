@@ -1,0 +1,137 @@
+###########plot_track
+setwd("/home/xiaokanglong/Desktop/usb/project/Chip-seq/map_result/BW_file")
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(org.Hs.eg.db)
+library(grid)
+library(trackViewer)
+
+grw <- parse2GRanges("chr10:80887000-80888000")
+ids <- getGeneIDsFromTxDb(grw, TxDb.Hsapiens.UCSC.hg19.knownGene)
+symbols <- mget(ids, org.Hs.egSYMBOL)
+genes <- geneTrack(ids, TxDb.Hsapiens.UCSC.hg19.knownGene,
+                   symbols, asList = FALSE)
+genes
+
+###########
+# myGenes <- genes(TxDb.Hsapiens.UCSC.hg19.knownGene)
+# geneAsEntrez1 <- select(org.Hs.eg.db, keys="OTUD7A", columns="ENTREZID", keytype="SYMBOL")
+# geneAsEntrez2 <- select(org.Hs.eg.db, keys="KLF13", columns="ENTREZID", keytype="SYMBOL")
+# genePos <- myGenes[myGenes$gene_id %in% c(geneAsEntrez1$ENTREZID, geneAsEntrez2$ENTREZID)]
+# genePos
+
+chromePos=grw
+
+library(Gviz)
+library(rtracklayer)
+library(trackViewer)
+library(TxDb.Hsapiens.UCSC.hg19.knownGene)
+library(org.Hs.eg.db)
+
+trs <- geneModelFromTxdb(TxDb.Hsapiens.UCSC.hg19.knownGene,
+                         org.Hs.eg.db,
+                         gr = chromePos)
+
+H0_1 <- importScore("H0_1_clean.bw",
+                    format = "BigWig",
+                    ranges=chromePos)
+
+H0_2 <- importScore("H0_2_clean.bw",
+                    format = "BigWig",
+                    ranges=chromePos)
+
+H0_3 <- importScore("H0_3_clean.bw",
+                    format = "BigWig",
+                    ranges=chromePos)
+H0_input <- importScore("H0_input_clean.bw",
+                        format = "BigWig",
+                        ranges=chromePos)
+
+H6_1 <- importScore("H6_1_clean.bw",
+                    format = "BigWig",
+                    ranges=chromePos)
+
+H6_2 <- importScore("H6_2_clean.bw",
+                    format = "BigWig",
+                    ranges=chromePos)
+
+H6_3 <- importScore("H6_3_clean.bw",
+                    format = "BigWig",
+                    ranges=chromePos)
+H6_input <- importScore("H6_input_clean.bw",
+                        format = "BigWig",
+                        ranges=chromePos)
+H72_1 <- importScore("H72_1_clean.bw",
+                     format = "BigWig",
+                     ranges=chromePos)
+
+H72_2 <- importScore("H72_2_clean.bw",
+                     format = "BigWig",
+                     ranges=chromePos)
+
+H72_3 <- importScore("H72_3_clean.bw",
+                     format = "BigWig",
+                     ranges=chromePos)
+H72_input <- importScore("H72_input_clean.bw",
+                         format = "BigWig",
+                         ranges=chromePos)
+trs
+
+optSty <- optimizeStyle(trackList(genes,H0_input, H0_1, H0_2, H0_3,
+                                  H6_input,H6_1, H6_2, H6_3,
+                                  H72_input,H72_1, H72_2,H72_3),
+                        theme = "safe")
+
+trackList <- optSty$tracks
+viewerStyle <- optSty$style
+#setTrackViewerStyleParam(viewerStyle, "margin", c(.15,.05,.05,.05))
+##browserTracks(trackList, gr=grw)
+
+#setTrackXscaleParam(trackList[[2]], "draw", FALSE)
+setTrackXscaleParam(trackList[[2]], "draw", FALSE)
+setTrackViewerStyleParam(viewerStyle, "xaxis", TRUE)
+
+viewTracks(trackList, gr=grw, viewerStyle = viewerStyle)
+
+#######
+library(RColorBrewer)
+display.brewer.all()
+display.brewer.pal(7, "Dark2")
+
+library(ggsci)
+library(scales)
+show_col(pal_simpsons("springfield")(12))
+
+kk=12
+for (i in 1:(length(optSty$tracks)-kk)) {
+  setTrackStyleParam(trackList[[i]], "height", .1)
+  setTrackStyleParam(trackList[[i]], "ylabgp", list(cex=1))
+  setTrackStyleParam(trackList[[i]], "color", "black")
+}
+
+for(i in (length(optSty$tracks)-kk+1):length(optSty$tracks)){
+  setTrackStyleParam(trackList[[i]],"ylim",c(0,20))
+  setTrackStyleParam(trackList[[i]],"ylabpos","topleft")
+  setTrackStyleParam(trackList[[i]],"ylabgp",list(cex=1))
+  #setTrackStyleParam(trackList[[i]],"height",(1-0.05*(length(optSty$tracks)-kk))/length(optSty$tracks))
+  setTrackYaxisParam(trackList[[i]],"gp",list(size=15))
+  setTrackStyleParam(trackList[[i]],"color",rev(pal_simpsons("springfield")(12))[i-1])
+}
+
+library(trackViewer)
+#setTrackStyleParam(viewerStyle, "margin", c(.15,.05,.05,.05))
+setTrackViewerStyleParam(viewerStyle, "margin", c(.15,.15,.05,.15))
+viewTracks(trackList, gr=grw, viewerStyle = viewerStyle, autoOptimizeStyle = T)
+#browserTracks(trackList, gr=grw, viewerStyle=viewerStyle)
+
+
+library(Cairo)
+pdf("H6_H72_H0_smad6.pdf", height = 10, width = 8)
+vp=viewTracks(trackList, gr=grw, viewerStyle = viewerStyle)
+addGuideLine(c(66994378, 66994619),vp=vp, col = "black")
+addArrowMark(list(x=66994499, y=13),
+             label = "peak",
+             length = unit(0.15, "inches"),
+             col="navy", quadrant = 1,
+             type="open",
+             vp=vp)
+dev.off()
